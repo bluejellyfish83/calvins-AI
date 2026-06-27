@@ -4,16 +4,26 @@
 from supabase import create_client
 import streamlit as st
 
-# 1. Connect to our Supabase database using secrets (our special keys)
+# Secrets to connect to our Supabase database
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+# Get the Supabase client for this specific user session
+def get_supabase():
+    # In Streamlit, multiple people use the app at the same time.
+    # Storing the database client in st.session_state ensures each user
+    # has their own private connection and doesn't mix up their login status!
+    if "supabase_client" not in st.session_state:
+        st.session_state.supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    return st.session_state.supabase_client
 
 
 # --- ACCOUNT FUNCTIONS (Authentication) ---
 
 # Create a brand new user account
 def sign_up(email, password):
+    supabase = get_supabase()
     try:
         response = supabase.auth.sign_up({"email": email, "password": password})
         return response.user, None
@@ -23,6 +33,7 @@ def sign_up(email, password):
 
 # Log in to an existing account
 def log_in(email, password):
+    supabase = get_supabase()
     try:
         response = supabase.auth.sign_in_with_password({"email": email, "password": password})
         return response.user, None
@@ -32,6 +43,7 @@ def log_in(email, password):
 
 # Log out of the account
 def log_out():
+    supabase = get_supabase()
     try:
         supabase.auth.sign_out()
     except Exception as e:
@@ -42,6 +54,7 @@ def log_out():
 
 # Save a single message to Supabase so we remember it forever!
 def save_message(user_id, room, role, content):
+    supabase = get_supabase()
     try:
         supabase.table("chat_history").insert({
             "user_id": user_id,
@@ -55,6 +68,7 @@ def save_message(user_id, room, role, content):
 
 # Load all past messages for a specific room
 def load_messages(user_id, room):
+    supabase = get_supabase()
     try:
         response = supabase.table("chat_history") \
             .select("role", "content") \
@@ -70,6 +84,7 @@ def load_messages(user_id, room):
 
 # Delete all messages for a specific room (clear chat memory)
 def clear_messages(user_id, room):
+    supabase = get_supabase()
     try:
         supabase.table("chat_history") \
             .delete() \
